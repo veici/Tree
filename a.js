@@ -10,7 +10,7 @@ function clone(data) {
   }
 }
 
-function skip(a, item) {
+function insert(a, item) {
   for (let i = 0; i < a.length; i++) {
     if (item.parent_id === a[i].node_key) {
       item.level = a[i].level + 1;
@@ -31,7 +31,7 @@ function listToTree(data) {
       a.unshift(item);
       continue;
     }
-    if (!skip(a, item)) {
+    if (!insert(a, item)) {
       item.level = 0;
       a.push(item);
     }
@@ -40,23 +40,25 @@ function listToTree(data) {
 }
 
 [
-  10000,
-  11000,
-  12000,
-  13000,
-  14000,
-  15000,
-  16000,
-  17000,
-  18000,
-  19000,
-  20000,
-  30000,
-  40000,
-  50000,
-  60000,
-  70000,
-  80000
+  10 * 1e3,
+  11 * 1e3,
+  12 * 1e3,
+  13 * 1e3,
+  14 * 1e3,
+  15 * 1e3,
+  16 * 1e3,
+  17 * 1e3,
+  18 * 1e3,
+  19 * 1e3,
+  20 * 1e3,
+  30 * 1e3,
+  40 * 1e3,
+  50 * 1e3,
+  60 * 1e3,
+  70 * 1e3,
+  80 * 1e3,
+  90 * 1e3,
+  100 * 1e3
 ].forEach(val => {
   const data = new Array(val).fill(0).map((_, index) => ({
     node_key: index,

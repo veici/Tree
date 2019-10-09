@@ -19,10 +19,11 @@ function getRandomInt(max: number): number {
 })
 export default class Home extends Vue {
   data() {
-    const data = new Array(20000).fill(0).map((_, index) => ({
+    const data = new Array(100).fill(0).map((_, index) => ({
       node_key: index,
       value: index,
-      parent_id: !index ? index : getRandomInt(index)
+      parent_id: !index ? index : getRandomInt(index),
+      is_collapse: Math.random() > 0.7
     }));
     return {
       data
@@ -30,3 +31,10 @@ export default class Home extends Vue {
   }
 }
 </script>
+
+<style lang="less" scoped>
+.home {
+  width: 800px;
+  margin: 0 auto;
+}
+</style>

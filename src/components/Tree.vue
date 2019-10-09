@@ -7,16 +7,17 @@
       "
     >
       <div
-        v-for="item in viewData"
+        v-for="(item, index) in viewData"
         :key="`treeData_${item.node_key}`"
         :style="
-          `position: absolute; width: 100%;height: 40px; line-height: 40px; transform: translate(0px, ${item.index *
+          `cursor: pointer;position: absolute; width: 100%;height: 40px; line-height: 40px; transform: translate(0px, ${scrollTop + index *
             40}px) translateZ(0px);`
         "
+        @click="toggleCollapse(item, !item.is_collapse)"
       >
         <div :style="`padding-left: ${item.level * 24}px;`">
-          {{ item.node_key }}: {{ item.parent_id }}--{{ item.level }}--{{
-            item.index
+          {{!!item.is_collapse ? `>` : `√`}} __ id {{ item.node_key }}: pid {{ item.parent_id }} __ level {{ item.level }} __ offset {{
+          item.offset
           }}
         </div>
       </div>
@@ -34,7 +35,7 @@ function clone(data: TreeNode[]): TreeNode[] {
   }
 }
 
-function skip(a: TreeNode[], item: TreeNode): boolean {
+function insert(a: TreeNode[], item: TreeNode): boolean {
   for (let i = 0; i < a.length; i++) {
     if (item.parent_id === a[i].node_key) {
       item.level = a[i].level + 1;
@@ -52,7 +53,8 @@ interface TreeNode {
   value: number;
   parent_id: number;
   level: number;
-  index: number;
+  offset: number;
+  is_collapse: boolean;
 }
 
 @Component
@@ -73,9 +75,27 @@ export default class HelloWorld extends Vue {
     return a;
   }
 
+  get renderData() {
+    const copy: TreeNode[] = [];
+    const treeData = this.treeData;
+    for (let i = 0, len = treeData.length; i < len; ) {
+      copy.push(treeData[i]);
+      if (treeData[i].is_collapse) {
+        let level = treeData[i].level;
+        do {
+          i += 1;
+          if (i == len) break;
+        } while (treeData[i].level > level); // after i
+      } else {
+        i++;
+      }
+    }
+    return copy;
+  }
+
   public getViewData() {
-    return this.treeData.slice(this.start, this.end).map((val, index) => {
-      val.index = this.start + index;
+    return this.renderData.slice(this.start, this.end).map((val, index) => {
+      val.offset = this.start + index;
       return val;
     });
   }
@@ -90,13 +110,14 @@ export default class HelloWorld extends Vue {
         a.unshift(item);
         continue;
       }
-      if (!skip(a, item)) {
+      if (!insert(a, item)) {
         item.level = 0;
         a.push(item);
       }
     }
     return a;
   }
+
   public treeToList() {}
 
   public scrollHandler({ target }: { target: Element }) {
@@ -104,6 +125,18 @@ export default class HelloWorld extends Vue {
     this.scrollTop = scrollTop;
     this.start = Math.floor(scrollTop / itemHeight);
     this.end = this.start + this.step;
+  }
+  public toggleCollapse(item: TreeNode, is_collapse: boolean) {
+    console.log({
+      item,
+      is_collapse
+    });
+    for (let i = 0, len = this.treeData.length; i < len; i++) {
+      if (item.node_key === this.treeData[i].node_key) {
+        this.treeData[i].is_collapse = is_collapse;
+        break;
+      }
+    }
   }
 }
 </script>
