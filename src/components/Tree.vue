@@ -10,15 +10,21 @@
         v-for="(item, index) in viewData"
         :key="`treeData_${item.node_key}`"
         :style="
-          `cursor: pointer;position: absolute; width: 100%;height: 40px; line-height: 40px; transform: translate(0px, ${scrollTop + index *
-            40}px) translateZ(0px);`
+          `cursor: pointer;position: absolute; width: 100%;height: 40px; line-height: 40px; transform: translate(0px, ${scrollTop +
+            index * 40}px) translateZ(0px);`
         "
-        @click="toggleCollapse(item, !item.is_collapse)"
       >
         <div :style="`padding-left: ${item.level * 24}px;`">
-          {{!!item.is_collapse ? `>` : `√`}} __ id {{ item.node_key }}: pid {{ item.parent_id }} __ level {{ item.level }} __ offset {{
-          item.offset
-          }}
+          <span @click="toggleCollapse(item, !item.is_collapse)">
+            {{
+            !!item.is_collapse ? `>` : `√`
+            }}
+          </span>
+          <input type="checkbox" />
+          <span>__ id {{ item.node_key }}</span>
+          <span>__ pid {{ item.parent_id }}</span>
+          <span>__ level {{ item.level }}</span>
+          <span>__ offset {{ item.offset }}</span>
         </div>
       </div>
     </div>
@@ -56,6 +62,15 @@ interface TreeNode {
   offset: number;
   is_collapse: boolean;
 }
+interface TreeItem {
+  node_key: number;
+  value: number;
+  parent_id: number;
+  level: number;
+  offset: number;
+  is_collapse: boolean;
+  children: TreeItem[];
+}
 
 @Component
 export default class HelloWorld extends Vue {
@@ -65,17 +80,12 @@ export default class HelloWorld extends Vue {
   private end: number = 19;
   private cacheSize: number = 30;
   private scrollTop: number = 0;
-  get viewData() {
-    return this.getViewData();
-  }
-  get treeData() {
-    console.time("listToTree");
-    const a = this.listToTree(this.data);
-    console.timeEnd("listToTree");
-    return a;
-  }
 
-  get renderData() {
+  private treeData: TreeNode[] = [];
+  private renderData: TreeNode[] = [];
+  private viewData: TreeNode[] = [];
+
+  public getRenderData() {
     const copy: TreeNode[] = [];
     const treeData = this.treeData;
     for (let i = 0, len = treeData.length; i < len; ) {
@@ -91,6 +101,16 @@ export default class HelloWorld extends Vue {
       }
     }
     return copy;
+  }
+
+  public isLeaf(pNode: TreeNode, cNode: TreeNode | undefined): boolean {
+    if (cNode === undefined) {
+      return true;
+    }
+    if (cNode.parent_id === pNode.node_key) {
+      return false;
+    }
+    return true;
   }
 
   public getViewData() {
@@ -118,13 +138,27 @@ export default class HelloWorld extends Vue {
     return a;
   }
 
-  public treeToList() {}
+  public treeToList(data: TreeItem[]): TreeNode[] {
+    let copy: TreeNode[] = [];
+    for (let i = 0, len = data.length; i < len; i++) {
+      if (data[i].children) {
+        let child = data[i].children;
+        delete data[i].children;
+        copy[copy.length] = data[i];
+        copy = copy.concat(this.treeToList(child));
+      } else {
+        copy[copy.length] = data[i];
+      }
+    }
+    return copy;
+  }
 
   public scrollHandler({ target }: { target: Element }) {
     const { scrollTop } = target;
     this.scrollTop = scrollTop;
     this.start = Math.floor(scrollTop / itemHeight);
     this.end = this.start + this.step;
+    this.setViewData();
   }
   public toggleCollapse(item: TreeNode, is_collapse: boolean) {
     console.log({
@@ -137,6 +171,30 @@ export default class HelloWorld extends Vue {
         break;
       }
     }
+    this.setRenderData();
+  }
+
+  public setViewData() {
+    this.viewData = this.getViewData();
+  }
+
+  public setRenderData() {
+    this.renderData = this.getRenderData();
+    this.setViewData();
+  }
+
+  public setTreeData() {
+    this.treeData = this.listToTree(this.data);
+    console.log(
+      JSON.stringify(this.treeData.filter((_, index) => index < 5), null, 2)
+    );
+    this.setRenderData();
+  }
+  public created() {
+    console.log(
+      JSON.stringify(this.data.filter((_, index) => index < 10), null, 2)
+    );
+    this.setTreeData();
   }
 }
 </script>
