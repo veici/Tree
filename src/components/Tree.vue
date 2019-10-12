@@ -1,5 +1,5 @@
 <template>
-  <div class="container" @scroll="scrollHandler">
+  <div class="container" @scroll="scrollHandler" style="padding-left: 16px;">
     <div
       :style="
         `transform: translate(0px, 0px) translateZ(0px); height: ${scrollTop +
@@ -10,19 +10,27 @@
         v-for="(item, index) in viewData"
         :key="`treeData_${item.node_key}`"
         :style="
-          `cursor: pointer;position: absolute; width: 100%;height: 40px; line-height: 40px; transform: translate(0px, ${scrollTop +
+          `position: absolute; width: 100%;height: 40px; line-height: 40px; transform: translate(0px, ${scrollTop +
             index * 40}px) translateZ(0px);`
         "
       >
         <div :style="`padding-left: ${item.level * 24}px;`">
-          <span @click="toggleCollapse(item, !item.is_collapse)">
-            {{
-            !!item.is_collapse ? `>` : `√`
-            }}
+          <span
+            @click="toggleCollapse(item, !item.is_collapse)"
+            v-if="!item.is_leaf"
+            :style="
+              `cursor: pointer; color: #0000ff; position: absolute; top: 1px; left: ${item.level *
+                24 -
+                10}px;`
+            "
+          >
+            {{ !!item.is_collapse ? `▸` : `▾` }}
           </span>
           <input type="checkbox" />
           <span>__ id {{ item.node_key }}</span>
-          <span>__ pid {{ item.parent_id }}</span>
+          <span @click="jump(item.parent_id)" :style="`cursor: pointer;`"
+            >__ pid {{ item.parent_id }}</span
+          >
           <span>__ level {{ item.level }}</span>
           <span>__ offset {{ item.offset }}</span>
         </div>
@@ -61,6 +69,7 @@ interface TreeNode {
   level: number;
   offset: number;
   is_collapse: boolean;
+  is_leaf: boolean;
 }
 interface TreeItem {
   node_key: number;
@@ -69,6 +78,7 @@ interface TreeItem {
   level: number;
   offset: number;
   is_collapse: boolean;
+  is_leaf: boolean;
   children: TreeItem[];
 }
 
@@ -89,6 +99,7 @@ export default class HelloWorld extends Vue {
     const copy: TreeNode[] = [];
     const treeData = this.treeData;
     for (let i = 0, len = treeData.length; i < len; ) {
+      treeData[i].is_leaf = this.isLeaf(treeData[i], treeData[i + 1]);
       copy.push(treeData[i]);
       if (treeData[i].is_collapse) {
         let level = treeData[i].level;
@@ -160,11 +171,25 @@ export default class HelloWorld extends Vue {
     this.end = this.start + this.step;
     this.setViewData();
   }
+  public jump(id: number) {
+    let index = this.findOnRenderData(id);
+    if (!~index) {
+      index = this.findOnTreeData(id);
+    }
+    if (index - 10 < 0) {
+      this.start = 0;
+      this.end = 19;
+    } else if (index + 9 > this.renderData.length) {
+      this.end = this.renderData.length - 1;
+      this.start = this.renderData.length - 19;
+    } else {
+      this.start = index - 10;
+      this.end = index + 9;
+    }
+    this.scrollTop = this.start * itemHeight;
+    this.setViewData();
+  }
   public toggleCollapse(item: TreeNode, is_collapse: boolean) {
-    console.log({
-      item,
-      is_collapse
-    });
     for (let i = 0, len = this.treeData.length; i < len; i++) {
       if (item.node_key === this.treeData[i].node_key) {
         this.treeData[i].is_collapse = is_collapse;
@@ -172,6 +197,32 @@ export default class HelloWorld extends Vue {
       }
     }
     this.setRenderData();
+  }
+
+  public findOnTreeData(id: number): number {
+    for (let i = 0, len = this.renderData.length; i < len; i++) {
+      if (this.treeData[i].node_key === id) {
+        let j = i;
+        while (j--) {
+          if (
+            this.treeData[j].level < this.treeData[i].level &&
+            this.treeData[j].is_collapse
+          ) {
+            return j;
+          }
+        }
+        return j;
+      }
+    }
+    return -1;
+  }
+  public findOnRenderData(id: number): number {
+    for (let i = 0, len = this.renderData.length; i < len; i++) {
+      if (this.renderData[i].node_key === id) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   public setViewData() {
@@ -184,16 +235,12 @@ export default class HelloWorld extends Vue {
   }
 
   public setTreeData() {
+    console.time("listToTree");
     this.treeData = this.listToTree(this.data);
-    console.log(
-      JSON.stringify(this.treeData.filter((_, index) => index < 5), null, 2)
-    );
+    console.timeEnd("listToTree");
     this.setRenderData();
   }
   public created() {
-    console.log(
-      JSON.stringify(this.data.filter((_, index) => index < 10), null, 2)
-    );
     this.setTreeData();
   }
 }

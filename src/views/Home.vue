@@ -26,7 +26,7 @@ export default class Home extends Vue {
       is_collapse: Math.random() > 0.7
     }));
     return {
-      data
+      data: Object.freeze(data)
     };
   }
 }
