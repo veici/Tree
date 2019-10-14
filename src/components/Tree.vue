@@ -8,7 +8,7 @@
     >
       <div
         v-for="(item, index) in viewData"
-        :key="`treeData_${item.node_key}`"
+        :key="`treeData_${item.node_id}`"
         :style="
           `position: absolute; width: 100%;height: 40px; line-height: 40px; transform: translate(0px, ${scrollTop +
             index * 40}px) translateZ(0px);`
@@ -23,14 +23,13 @@
                 24 -
                 10}px;`
             "
-          >
-            {{ !!item.is_collapse ? `▸` : `▾` }}
-          </span>
+          >{{ !!item.is_collapse ? `▸` : `▾` }}</span>
           <input type="checkbox" />
-          <span>__ id {{ item.node_key }}</span>
-          <span @click="jump(item.parent_id)" :style="`cursor: pointer;`"
-            >__ pid {{ item.parent_id }}</span
-          >
+          <span>__ id {{ item.node_id }}</span>
+          <span
+            @click="jump(item.parent_id)"
+            :style="`cursor: pointer;`"
+          >__ pid {{ item.parent_id }}</span>
           <span>__ level {{ item.level }}</span>
           <span>__ offset {{ item.offset }}</span>
         </div>
@@ -49,9 +48,9 @@ function clone(data: TreeNode[]): TreeNode[] {
   }
 }
 
-function insert(a: TreeNode[], item: TreeNode): boolean {
+function insertLeft(a: TreeNode[], item: TreeNode): boolean {
   for (let i = 0; i < a.length; i++) {
-    if (item.parent_id === a[i].node_key) {
+    if (item.parent_id === a[i].node_id) {
       item.level = a[i].level + 1;
       a.splice(i + 1, 0, item);
       return true;
@@ -60,25 +59,46 @@ function insert(a: TreeNode[], item: TreeNode): boolean {
   return false;
 }
 
+function insertToAll(
+  left: TreeNode[],
+  right: TreeNode[],
+  item: TreeNode
+): undefined {
+  const pNode = findParent(right, item);
+  if (!pNode) {
+    item.level = 0;
+    left.push(item);
+  } else {
+    if (!insertLeft(left, pNode)) {
+      insertToAll(left, right, pNode);
+    }
+    insertLeft(left, item);
+  }
+  return undefined;
+}
+
+function findParent(right: TreeNode[], item: TreeNode): TreeNode | undefined {
+  for (let i = 0, len = right.length; i < len; i++) {
+    if (item.parent_id === right[i].node_id) {
+      return right.splice(i, 1)[0];
+    }
+  }
+  return undefined;
+}
+
 let itemHeight = 40;
 
 interface TreeNode {
-  node_key: number;
+  node_id: number;
   value: number;
   parent_id: number;
   level: number;
   offset: number;
   is_collapse: boolean;
+  loop: number;
   is_leaf: boolean;
 }
-interface TreeItem {
-  node_key: number;
-  value: number;
-  parent_id: number;
-  level: number;
-  offset: number;
-  is_collapse: boolean;
-  is_leaf: boolean;
+interface TreeItem extends TreeNode {
   children: TreeItem[];
 }
 
@@ -118,7 +138,7 @@ export default class HelloWorld extends Vue {
     if (cNode === undefined) {
       return true;
     }
-    if (cNode.parent_id === pNode.node_key) {
+    if (cNode.parent_id === pNode.node_id) {
       return false;
     }
     return true;
@@ -131,22 +151,31 @@ export default class HelloWorld extends Vue {
     });
   }
   public listToTree(data: TreeNode[]) {
-    const cd = clone(data);
-    const a: TreeNode[] = [];
-    while (cd.length) {
-      let item = cd.shift();
-      if (item === undefined) return a;
-      if (!item.parent_id && !item.node_key) {
+    console.log("all: ", data.length);
+    const right = clone(data);
+    const left: TreeNode[] = [];
+
+    while (right.length) {
+      let item = right.shift();
+      if (item === undefined) return left;
+      if (item.parent_id === item.node_id) {
+        // 脏数据
         item.level = 0;
-        a.unshift(item);
+        left.unshift(item);
         continue;
       }
-      if (!insert(a, item)) {
+      // root
+      if (item.parent_id === null) {
         item.level = 0;
-        a.push(item);
+        left.unshift(item);
+        continue;
+      }
+      if (!insertLeft(left, item)) {
+        // console.log("right");
+        insertToAll(left, right, item);
       }
     }
-    return a;
+    return left;
   }
 
   public treeToList(data: TreeItem[]): TreeNode[] {
@@ -166,9 +195,9 @@ export default class HelloWorld extends Vue {
 
   public scrollHandler({ target }: { target: Element }) {
     const { scrollTop } = target;
-    this.scrollTop = scrollTop;
     this.start = Math.floor(scrollTop / itemHeight);
     this.end = this.start + this.step;
+    this.scrollTop = scrollTop;
     this.setViewData();
   }
   public jump(id: number) {
@@ -178,10 +207,10 @@ export default class HelloWorld extends Vue {
     }
     if (index - 10 < 0) {
       this.start = 0;
-      this.end = 19;
+      this.end = this.step;
     } else if (index + 9 > this.renderData.length) {
       this.end = this.renderData.length - 1;
-      this.start = this.renderData.length - 19;
+      this.start = this.renderData.length - this.step;
     } else {
       this.start = index - 10;
       this.end = index + 9;
@@ -191,7 +220,7 @@ export default class HelloWorld extends Vue {
   }
   public toggleCollapse(item: TreeNode, is_collapse: boolean) {
     for (let i = 0, len = this.treeData.length; i < len; i++) {
-      if (item.node_key === this.treeData[i].node_key) {
+      if (item.node_id === this.treeData[i].node_id) {
         this.treeData[i].is_collapse = is_collapse;
         break;
       }
@@ -201,7 +230,7 @@ export default class HelloWorld extends Vue {
 
   public findOnTreeData(id: number): number {
     for (let i = 0, len = this.renderData.length; i < len; i++) {
-      if (this.treeData[i].node_key === id) {
+      if (this.treeData[i].node_id === id) {
         let j = i;
         while (j--) {
           if (
@@ -218,7 +247,7 @@ export default class HelloWorld extends Vue {
   }
   public findOnRenderData(id: number): number {
     for (let i = 0, len = this.renderData.length; i < len; i++) {
-      if (this.renderData[i].node_key === id) {
+      if (this.renderData[i].node_id === id) {
         return i;
       }
     }

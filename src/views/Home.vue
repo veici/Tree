@@ -19,14 +19,15 @@ function getRandomInt(max: number): number {
 })
 export default class Home extends Vue {
   data() {
-    const data = new Array(10000).fill(0).map((_, index) => ({
-      node_key: index,
+    let lenth = 10000;
+    const data = new Array(lenth).fill(0).map((_, index) => ({
+      node_id: index,
       value: index,
-      parent_id: !index ? index : getRandomInt(index),
-      is_collapse: Math.random() > 0.7
+      parent_id: !index ? null : getRandomInt(index),
+      is_collapse: false // Math.random() > 0.7
     }));
     return {
-      data: Object.freeze(data)
+      data
     };
   }
 }
@@ -34,7 +35,6 @@ export default class Home extends Vue {
 
 <style lang="less" scoped>
 .home {
-  width: 800px;
-  margin: 0 auto;
+  margin: 0 24px;
 }
 </style>
